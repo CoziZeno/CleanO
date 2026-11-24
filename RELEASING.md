@@ -95,9 +95,18 @@ and `*.key`.
 ### Fixing it on macOS
 
 You need an **Apple Developer Program membership** ($99/year) and a
-"Developer ID Application" certificate. The workflow already reads these
-secrets — add them in Settings → Secrets and variables → Actions and signing
-plus notarisation happen automatically:
+"Developer ID Application" certificate.
+
+**Two steps, not one.** Add the six secrets in Settings → Secrets and variables
+→ Actions, *and* uncomment the `APPLE_*` lines in
+`.github/workflows/release.yml`. They are commented out on purpose: GitHub
+substitutes an empty string for a secret that does not exist rather than
+leaving the variable unset, and Tauri reads "`APPLE_CERTIFICATE` is defined"
+as "sign this build". An empty value therefore fails the bundle step with
+`SecKeychainItemImport: Unable to decode the provided data`, which is a
+confusing way to learn you have no certificate.
+
+The secrets:
 
 | Secret | What it is |
 | --- | --- |
@@ -129,18 +138,21 @@ a normal double-click.
 
 ## The macOS caveat, stated plainly
 
-Every macOS-specific code path in this project — TCC permission handling,
-`.app` bundle treatment, Trash, NFD filename normalisation, `Info.plist`
-parsing, the `/Volumes` drive listing — is written but **has never been
-compiled or run**. Development happened entirely on Windows, and a C
-cross-compiler is not available here, so not even a type-check was possible.
+**It compiles.** As of 24 Nov 2026 the whole crate builds clean as a universal
+binary on a `macos-15` runner — every macOS-specific path (TCC permission
+handling, `.app` bundle treatment, Trash, NFD filename normalisation,
+`Info.plist` parsing, the `/Volumes` drive listing) compiled on the first
+attempt with no errors. That was the big unknown, and it is settled.
 
-The first CI run on `macos-14` is the first time that code will be compiled at
-all. Expect it to need a round or two of fixes. Once it compiles, it still has
-not been *tested* — someone needs to open it on a Mac and work through
-`FEATURES.md`.
+**It has still never been run.** Compiling proves the types line up, not that
+the app works. Nobody has opened it on a Mac, granted it a TCC prompt, or
+watched it move a file to the Trash. The paths most likely to be wrong are the
+ones the compiler cannot check: whether the permission prompts appear at the
+right moment, whether `.app` bundles are treated as single items rather than
+folders, and whether NFD/NFC filename handling survives a round trip on APFS.
 
-Do not advertise macOS support until that has happened.
+Someone needs to install it on a Mac and work through `FEATURES.md` before
+macOS is advertised as supported.
 
 ## Auto-update
 
