@@ -42,6 +42,15 @@ tauri-plugin-opener = { version = "2", optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
+# Error types. Platform-independent: this lives in [dependencies], NOT in a
+# target-specific table. It was briefly in the cfg(windows) block, which built
+# fine on Windows and failed with 16 errors everywhere else.
+thiserror = "2"
+
+# macOS/APFS hands back NFD filenames; Windows stores NFC. We normalise at the
+# display boundary only - never for I/O. See core/text.rs.
+unicode-normalization = "0.1"
+
 # Parallel scan. We walk with std::fs and parallelise with rayon rather than
 # pulling in a walker crate: the safety guards (symlink refusal, device/inode
 # loop detection, app-bundle handling, depth cap) need to sit inside the
@@ -106,12 +115,6 @@ windows-sys = { version = "0.59", features = [
     # Recycle Bin size and emptying, for Quick Clean.
     "Win32_UI_Shell",
 ] }
-
-thiserror = "2"
-
-# macOS/APFS hands back NFD filenames; Windows stores NFC. We normalise at the
-# display boundary only - never for I/O. See core/text.rs.
-unicode-normalization = "0.1"
 
 [profile.release]
 codegen-units = 1
