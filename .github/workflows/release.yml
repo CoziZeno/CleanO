@@ -71,7 +71,11 @@ jobs:
       matrix:
         include:
           - label: macOS (Universal)
-            platform: macos-14
+            # Pinned, not macos-latest: that label moves to a new OS image
+            # whenever GitHub promotes one, which changes the Xcode version
+            # under the build without warning. macos-14 was retired on
+            # 2 Nov 2026 and its label stopped resolving entirely.
+            platform: macos-15
             # One download that runs natively on both Apple Silicon and Intel.
             # Tauri lipos the two slices together.
             args: --target universal-apple-darwin
