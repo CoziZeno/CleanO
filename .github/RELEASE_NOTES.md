@@ -8,6 +8,7 @@ deleted without your say-so.
 | --- | --- |
 | Windows 10/11 (64-bit) | `Cleanup_1.0.0_x64-setup.exe` |
 | macOS 11+ (Apple Silicon and Intel) | `Cleanup_1.0.0_universal.dmg` |
+| Windows, managed deployment | `Cleanup_1.0.0_x64_en-US.msi` |
 
 ### First launch
 
