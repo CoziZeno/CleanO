@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Merged into the generated Info.plist by Tauri at bundle time.
+
+  macOS TCC gates ~/Downloads, ~/Documents and ~/Desktop behind user consent.
+  Without these usage descriptions the consent prompt has no explanation text
+  and, on some macOS versions, the read simply fails with a permission error.
+-->
+<plist version="1.0">
+  <dict>
+    <key>NSDownloadsFolderUsageDescription</key>
+    <string>Cleanup reads your Downloads folder to show you what is there and suggest how to tidy it. Nothing is moved or deleted without your confirmation, and nothing leaves your computer.</string>
+    <key>NSDocumentsFolderUsageDescription</key>
+    <string>Cleanup only reads folders you explicitly add as a scan location.</string>
+    <key>NSDesktopFolderUsageDescription</key>
+    <string>Cleanup only reads folders you explicitly add as a scan location.</string>
+    <key>NSRemovableVolumesUsageDescription</key>
+    <string>Cleanup only reads removable volumes you explicitly add as a scan location.</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>12.0</string>
+  </dict>
+</plist>

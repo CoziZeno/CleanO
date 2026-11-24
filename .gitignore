@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+release/
+src-tauri/target/
+src-tauri/gen/
+
+# Local tooling
+.DS_Store
+Thumbs.db
+*.local
+.vscode/
+.idea/
+
+# Never commit signing material
+*.p12
+*.pfx
+*.cer
+*.key
+.env
+.env.*
+!.env.example

@@ -1,0 +1,11 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Minimum capability set. Deliberately narrow: the frontend has no filesystem permissions at all - every file read or write goes through a Rust command that passes the safety guard first.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "dialog:allow-open",
+    "opener:allow-reveal-item-in-dir"
+  ]
+}

@@ -1,0 +1,197 @@
+/*
+ * Design tokens and base styles.
+ *
+ * Dark by default. The light variant exists because the OS webviews respect the
+ * system theme for form controls and scrollbars, so an app that only does dark
+ * looks broken for a light-mode user in exactly those details.
+ *
+ * Deliberately conservative CSS: no :has()-dependent layout and no container
+ * queries on the critical path, because this ships on WebView2 on Windows and
+ * WKWebView on macOS rather than on one Chromium we control.
+ */
+
+:root {
+  --bg: #09090b;
+  --bg-sunken: #060607;
+  --surface: #111113;
+  --surface-raised: #17171a;
+  --surface-hover: #1d1d21;
+  --surface-active: #232328;
+
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.13);
+
+  --text: #ededf0;
+  --text-muted: #9394a0;
+  --text-dim: #5f6069;
+
+  --accent: #6366f1;
+  --accent-hover: #7a7cf7;
+  --accent-text: #ffffff;
+  --accent-soft: rgba(99, 102, 241, 0.15);
+  --accent-ring: rgba(99, 102, 241, 0.4);
+
+  --ok: #22c55e;
+  --warn: #f59e0b;
+  --danger: #ef4444;
+  --warn-soft: rgba(245, 158, 11, 0.12);
+  --danger-soft: rgba(239, 68, 68, 0.12);
+  --ok-soft: rgba(34, 197, 94, 0.12);
+
+  --cat-images: #38bdf8;
+  --cat-videos: #a78bfa;
+  --cat-audio: #f472b6;
+  --cat-documents: #4ade80;
+  --cat-archives: #fbbf24;
+  --cat-installers: #fb923c;
+  --cat-development: #22d3ee;
+  --cat-temporary: #94a3b8;
+  --cat-misc: #64748b;
+
+  --radius-sm: 5px;
+  --radius: 8px;
+  --radius-lg: 12px;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+
+  --sidebar-width: 212px;
+  --row-height: 46px;
+
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", Inter,
+    system-ui, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --fast: 120ms;
+  --normal: 200ms;
+
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --bg: #fbfbfc;
+  --bg-sunken: #f2f2f4;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-hover: #f4f4f6;
+  --surface-active: #ebebef;
+
+  --border: rgba(0, 0, 0, 0.09);
+  --border-strong: rgba(0, 0, 0, 0.17);
+
+  --text: #18181b;
+  --text-muted: #62636d;
+  --text-dim: #8d8e98;
+
+  --accent-soft: rgba(99, 102, 241, 0.1);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.07);
+  --shadow: 0 8px 28px rgba(0, 0, 0, 0.1);
+
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13.5px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /* A desktop app should not rubber-band or let a stray drag select the chrome. */
+  overscroll-behavior: none;
+  user-select: none;
+  cursor: default;
+}
+
+/* Text the user may legitimately want to copy - paths, counts, messages. */
+.selectable {
+  user-select: text;
+  cursor: text;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+h1 {
+  font-size: 20px;
+}
+h2 {
+  font-size: 15px;
+}
+h3 {
+  font-size: 13px;
+}
+
+p {
+  margin: 0;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 6px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-dim);
+  background-clip: content-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,125 @@
+[package]
+name = "cleanup"
+version = "1.0.0"
+description = "Find what is filling your disk, and clear it safely."
+authors = ["Cleanup"]
+edition = "2021"
+rust-version = "1.77"
+
+[lib]
+# Tauri 2 convention: main.rs is a thin shim over the library so that the
+# same code can be reused by integration tests and (later) mobile targets.
+name = "cleanup_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[features]
+default = ["app"]
+# The GUI shell. With it off, the crate is just `core` plus `error`/`state` -
+# no Tauri, no webview, no window. That is how the test suite runs:
+#
+#   cargo test --lib --no-default-features
+#
+# which turns "core must never depend on tauri" from a convention the reviewer
+# has to police into something the compiler enforces. It also makes the tests
+# fast, and runnable on a toolchain that cannot link a GUI.
+app = [
+    "dep:tauri",
+    "dep:tauri-plugin-dialog",
+    "dep:tauri-plugin-opener",
+    "dep:tauri-build",
+]
+
+[build-dependencies]
+# Optional for the same reason: `tauri-build` refuses to run when the `tauri`
+# crate is not a dependency, and the core test build does not have one.
+tauri-build = { version = "2", features = [], optional = true }
+
+[dependencies]
+tauri = { version = "2", features = [], optional = true }
+tauri-plugin-dialog = { version = "2", optional = true }
+tauri-plugin-opener = { version = "2", optional = true }
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Parallel scan. We walk with std::fs and parallelise with rayon rather than
+# pulling in a walker crate: the safety guards (symlink refusal, device/inode
+# loop detection, app-bundle handling, depth cap) need to sit inside the
+# traversal, not be bolted onto it.
+rayon = "1"
+parking_lot = "0.12"
+
+# Platform-correct known folders (SHGetKnownFolderPath on Windows).
+dirs = "5"
+
+# Content hashing. BLAKE3 over SHA-256 for throughput (SIMD, ~3-10x) while
+# still being a 256-bit cryptographic digest, so a collision is not a risk we
+# have to reason about.
+blake3 = "1"
+
+# Hash cache and (Phase 4) the undo journal. Both must survive a crash, which
+# is the entire reason SQLite is here rather than a JSON file. `bundled`
+# compiles SQLite from source so there is no system dependency to chase.
+rusqlite = { version = "0.32", features = ["bundled"] }
+
+# Native Recycle Bin / Trash. `IFileOperation` on Windows, NSFileManager's
+# trashItemAtURL: on macOS. There is deliberately no `remove_file` on a user's
+# file anywhere in this codebase - deletion is always recoverable by the OS.
+trash = "5"
+
+# Thumbnail decoding. Pure Rust, no system libraries to chase, and its decode
+# limits are what stop a malformed or enormous image exhausting memory - this
+# code runs against whatever happens to be in someone's Downloads folder.
+# Formats are listed explicitly rather than taking the defaults, so adding one
+# is a decision rather than an accident.
+image = { version = "0.25", default-features = false, features = [
+    "png",
+    "jpeg",
+    "gif",
+    "bmp",
+    "ico",
+    "tiff",
+    "webp",
+    "qoi",
+] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# Reading app versions means parsing Info.plist, which is usually the *binary*
+# format rather than XML. Hand-rolling that parser is not something to ship
+# unverified on a platform this machine cannot compile for.
+plist = "1"
+
+[target.'cfg(windows)'.dependencies]
+# A safe wrapper over the registry. The alternative is a few hundred lines of
+# unsafe FFI around RegOpenKeyExW/RegEnumKeyExW that would have to be exactly
+# right; this is the better trade for reading a well-known key.
+winreg = "0.52"
+
+# Only for `GetFileInformationByHandle`. std's accessors for volume serial and
+# file index are still unstable (`windows_by_handle`), and we need file identity
+# to tell two hardlinks apart from two copies - otherwise the app reports space
+# savings that will never materialise. Read from the handle we already hold for
+# hashing, so it costs nothing extra.
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    "Win32_Storage_FileSystem",
+    # Recycle Bin size and emptying, for Quick Clean.
+    "Win32_UI_Shell",
+] }
+
+thiserror = "2"
+
+# macOS/APFS hands back NFD filenames; Windows stores NFC. We normalise at the
+# display boundary only - never for I/O. See core/text.rs.
+unicode-normalization = "0.1"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true
+
+[profile.dev]
+# Scanning in a debug build is dominated by bounds checks otherwise.
+opt-level = 1

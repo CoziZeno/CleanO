@@ -1,0 +1,167 @@
+# Builds the downloadable installers for Windows and macOS.
+#
+# macOS cannot be cross-compiled from anywhere else — it needs Xcode and the
+# macOS SDK — so a macOS runner is not a convenience here, it is the only way
+# to produce the .dmg at all. That is the main reason this workflow exists.
+#
+# Push a tag to cut a release:
+#
+#     git tag v1.0.0 && git push origin v1.0.0
+#
+# The release is created as a **draft** so you can read the notes and check the
+# files before anyone can download them. Publish it from the GitHub Releases
+# page when you are happy.
+#
+# Running it manually (Actions -> Release -> Run workflow) builds the same
+# installers and attaches them to the run as artifacts, without creating a
+# release. Use that to check a build before tagging.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+# Two jobs pushing to one draft release need to not race each other.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  # A cheap gate before spending runner minutes on two full app builds. The
+  # core crate has no Tauri dependency, so its tests run on plain Linux with
+  # no system webview to install.
+  check:
+    name: Tests and types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - run: npm ci
+
+      - name: Type-check the frontend
+        run: npm run typecheck
+
+      - name: Core test suite
+        working-directory: src-tauri
+        run: cargo test --no-default-features
+
+  build:
+    name: ${{ matrix.label }}
+    needs: check
+    strategy:
+      # One platform failing should not throw away the other's build.
+      fail-fast: false
+      matrix:
+        include:
+          - label: macOS (Universal)
+            platform: macos-14
+            # One download that runs natively on both Apple Silicon and Intel.
+            # Tauri lipos the two slices together.
+            args: --target universal-apple-darwin
+            rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
+          - label: Windows (x64)
+            platform: windows-latest
+            args: ""
+            rust-targets: ""
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-targets }}
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          key: ${{ matrix.platform }}
+
+      - run: npm ci
+
+      # Read the notes into an output rather than pointing the action at the
+      # file: tauri-action takes `releaseBody`, and an input it does not know
+      # is ignored silently — which would ship a release with an empty body.
+      - name: Load release notes
+        id: notes
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          {
+            echo 'body<<RELEASE_NOTES_EOF'
+            cat .github/RELEASE_NOTES.md
+            echo 'RELEASE_NOTES_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      # Tagged push: build and attach to a draft release.
+      - name: Build and draft release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # --- macOS signing and notarisation -------------------------------
+          # All optional. Without them the build still succeeds and produces
+          # an unsigned .dmg; see RELEASING.md for what that means for whoever
+          # downloads it.
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: Cleanup ${{ github.ref_name }}
+          releaseBody: ${{ steps.notes.outputs.body }}
+          # Draft on purpose: nothing is downloadable until you publish it.
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
+
+      # Manual run: same build, no release. Artifacts hang off the run.
+      - name: Build only
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        uses: tauri-apps/tauri-action@v0
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          args: ${{ matrix.args }}
+
+      - name: Attach installers to this run
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cleanup-${{ matrix.platform }}
+          if-no-files-found: error
+          path: |
+            src-tauri/target/release/bundle/dmg/*.dmg
+            src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/bundle/msi/*.msi
